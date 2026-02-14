@@ -1,0 +1,40 @@
+appId: com.nexus.ide
+productName: Nexus IDE
+copyright: Copyright © 2026 Nexus IDE
+
+directories:
+  output: release/${version}
+
+files:
+  - dist/**/*
+  - node_modules/**/*
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ${name}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  artifactName: ${name}-${version}.${ext}
+  category: public.app-category.developer-tools
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  artifactName: ${name}-${version}.${ext}
+  category: Development
+
+publish:
+  provider: generic
+  url: https://update.nexus-ide.dev
