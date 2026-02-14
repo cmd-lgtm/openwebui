@@ -1,0 +1,143 @@
+version: '3.8'
+
+# Causal Organism - Production Configuration
+# All secrets should be provided via environment variables or .env file
+# See .env.example for required variables
+
+services:
+  # 1. Causal Organism Backend (The Brain)
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./backend:/app/backend
+    env_file:
+      - .env
+    environment:
+      - GRAPH_DB_URL=bolt://neo4j:7687
+      - GRAPH_DB_USER=neo4j
+      - REDIS_URL=redis://redis:6379/0
+      - TIMESCALE_HOST=timescale
+      - TIMESCALE_PORT=5432
+      - TIMESCALE_DB=postgres
+      # Tracing configuration
+      - TRACING_ENABLED=true
+      - TRACING_EXPORTER=jaeger
+      - JAEGER_HOST=jaeger
+      - JAEGER_PORT=6831
+      - SERVICE_VERSION=1.0.0
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    depends_on:
+      - neo4j
+      - redis
+
+  # 2. Causal Organism Frontend (The Face)
+  webapp:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+
+  # 3. Graph Persistence (The Memory)
+  neo4j:
+    image: neo4j:community
+    ports:
+      - "7474:7474" # HTTP Browser
+      - "7687:7687" # Bolt
+    env_file:
+      - .env
+    volumes:
+      - neo4j_data:/data
+
+  # 4. Message Broker (The Nervous System)
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  # 5. Background Worker (The Muscles)
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: celery -A backend.worker.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - GRAPH_DB_URL=bolt://neo4j:7687
+      - GRAPH_DB_USER=neo4j
+      - REDIS_URL=redis://redis:6379/0
+      - TIMESCALE_HOST=timescale
+      - TIMESCALE_PORT=5432
+      - TIMESCALE_DB=postgres
+      # Tracing configuration
+      - TRACING_ENABLED=true
+      - TRACING_EXPORTER=jaeger
+      - JAEGER_HOST=jaeger
+      - JAEGER_PORT=6831
+      - SERVICE_VERSION=1.0.0
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    depends_on:
+      - redis
+      - neo4j
+    volumes:
+      - ./backend:/app/backend
+      - ./data:/app/data
+
+  # 6. Time-Series Metrics (The Memory for History)
+  timescale:
+    image: timescale/timescaledb:latest-pg14
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+
+  # 7. Prometheus (Metrics Collection)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus-alerts.yml:/etc/prometheus/alerts/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - api
+      - worker
+
+  # 8. Grafana (Metrics Visualization)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+
+volumes:
+  neo4j_data:
+  timescale_data:
+  prometheus_data:
+  grafana_data:

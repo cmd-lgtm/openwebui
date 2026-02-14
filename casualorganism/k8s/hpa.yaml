@@ -1,0 +1,207 @@
+# Kubernetes Horizontal Pod Autoscaler configurations for Causal Organism
+#
+# Requirements:
+# - 13.1: Scale API replicas based on CPU utilization (70% threshold)
+# - 13.2: Configure minimum 2 and maximum 10 API replicas
+# - 13.3: Limit scale-up rate to 2 replicas per minute
+# - 13.4: Scale workers based on queue depth
+# - 13.5: Configure minimum 2 and maximum 20 worker replicas
+# - 13.6: Use custom metrics for queue depth
+# - 13.7: Ensure scaling doesn't exceed resource capacity
+# - 13.8: Add stabilization window to prevent flapping
+
+---
+# HPA for API Service - CPU-based scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: causal-organism-api-hpa
+  namespace: causal-organism
+  labels:
+    app: causal-organism
+    component: api
+spec:
+  # Scale between 2 and 10 replicas
+  minReplicas: 2
+  maxReplicas: 10
+
+  # Select the API deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: causal-organism-api
+
+  # Scaling behavior configuration
+  behavior:
+    # Scale-up behavior
+    scaleUp:
+      # Stabilization window to prevent flapping
+      stabilizationWindowSeconds: 60
+      policies:
+        # Allow max 2 replicas increase per minute
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+
+    # Scale-down behavior - more conservative
+    scaleDown:
+      # Longer stabilization window for scale-down
+      stabilizationWindowSeconds: 300
+      policies:
+        # Allow max 1 replica decrease per minute
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+
+  # Metrics for scaling decisions
+  metrics:
+    # CPU utilization metric
+    - type: Resource
+      resource:
+        name: cpu
+        # Scale when CPU exceeds 70%
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Memory utilization metric (additional safeguard)
+    - type: Resource
+      resource:
+        name: memory
+        # Scale when memory exceeds 80%
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# HPA for Worker Service - Queue depth based scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: causal-organism-worker-hpa
+  namespace: causal-organism
+  labels:
+    app: causal-organism
+    component: worker
+spec:
+  # Scale between 2 and 20 replicas
+  minReplicas: 2
+  maxReplicas: 20
+
+  # Select the Worker deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: causal-organism-worker
+
+  # Scaling behavior configuration
+  behavior:
+    # Scale-up behavior - faster for workers processing queues
+    scaleUp:
+      # Short stabilization for queue processing
+      stabilizationWindowSeconds: 30
+      policies:
+        # Allow max 4 replicas increase per minute for workers
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+
+    # Scale-down behavior - conservative
+    scaleDown:
+      # Longer stabilization window
+      stabilizationWindowSeconds: 300
+      policies:
+        # Allow max 1 replica decrease per minute
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+
+  # Metrics for scaling decisions
+  metrics:
+    # Custom metric: Celery queue depth
+    # This requires the custom metrics stack (prometheus-adapter)
+    - type: Pods
+      pods:
+        metric:
+          name: celery_queue_depth
+        # Scale when queue has more than 10 pending tasks per worker
+        target:
+          type: AverageValue
+          averageValue: "10"
+
+    # Fallback: CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        # Also scale on high CPU
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+---
+# Prometheus custom metrics configuration for queue depth
+# Required for queue-based auto-scaling
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-adapter-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    rules:
+      custom:
+        - seriesQuery: 'celery_pending_tasks{namespace="causal-organism"}'
+          resources:
+            overrides:
+              namespace:
+                resource: namespace
+              pod:
+                resource: pod
+          name:
+            matches: "^(.*)$"
+            as: "celery_queue_depth"
+          metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)'
+    - seriesQuery: 'celery_active_tasks{namespace="causal-organism"}'
+      resources:
+        overrides:
+          namespace:
+            resource: namespace
+          pod:
+            resource: pod
+      name:
+        matches: "^(.*)$"
+        as: "celery_active_tasks"
+      metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)'
+
+---
+# PodDisruptionBudget for API - ensures minimum availability during disruptions
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: causal-organism-api-pdb
+  namespace: causal-organism
+spec:
+  # Allow at most 1 pod to be unavailable (for minReplicas=2)
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: causal-organism
+      component: api
+
+---
+# PodDisruptionBudget for Worker - ensures minimum availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: causal-organism-worker-pdb
+  namespace: causal-organism
+spec:
+  # Allow at most 1 pod to be unavailable (for minReplicas=2)
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: causal-organism
+      component: worker
