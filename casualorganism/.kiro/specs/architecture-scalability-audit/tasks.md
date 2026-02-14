@@ -3,7 +3,10 @@
 
 ## Overview
 
-This implementation plan transforms the Causal Organism platform from proof-of-concept to production-ready system. The approach is incremental: first eliminate single points of failure, then add scalability features, then production hardening. Each task builds on previous work and includes validation through tests.
+
+This implementation plan transforms the Causal Organism platform from 
+
+proof-of-concept to production-ready system. The approach is incremental: first eliminate single points of failure, then add scalability features, then production hardening. Each task builds on previous work and includes validation through tests.
 
 ## Tasks
 
@@ -197,6 +200,8 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
   - [x] 8.3 Add export cleanup job
     - Delete exports older than 7 days
     - Schedule with Celery beat
+  
+
     - _Requirements: 11.8_
   
   - [ ]* 8.4 Write property test for export response time
@@ -549,37 +554,37 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
     - **Property 34: Traffic Removal on Readiness Failure**
     - **Validates: Requirements 23.10**
 
-- [x] 22. Implement secrets management
-  - [x] 22.1 Remove hardcoded secrets from docker-compose.yml
+- [ ] 22. Implement secrets management
+  - [ ] 22.1 Remove hardcoded secrets from docker-compose.yml
     - Use environment variables
     - Document required secrets
     - _Requirements: 24.1, 24.2_
-
-  - [x] 22.2 Create Kubernetes Secrets for credentials
+  
+  - [ ] 22.2 Create Kubernetes Secrets for credentials
     - Create secrets for database passwords
     - Create secrets for API keys
     - _Requirements: 24.4, 24.5_
-
-  - [x] 22.3 Update application to read from Kubernetes Secrets
+  
+  - [ ] 22.3 Update application to read from Kubernetes Secrets
     - Modify connection initialization
     - Use separate credentials per environment
     - _Requirements: 24.4, 24.5, 24.8_
-
-  - [x] 22.4 Add support for external secret manager (Vault)
+  
+  - [ ] 22.4 Add support for external secret manager (Vault)
     - Add Vault client integration
     - Configure for production use
     - _Requirements: 24.6_
-
-  - [x] 22.5 Implement secret rotation
+  
+  - [ ] 22.5 Implement secret rotation
     - Rotate database passwords every 90 days
     - Document rotation procedures
     - _Requirements: 24.7_
-
+  
   - [ ]* 22.6 Write unit test to verify no secrets in config files
     - Scan docker-compose.yml and k8s manifests
     - **Validates: Requirements 24.1**
 
-  - [x] 23. Implement Kubernetes auto-scaling
+- [ ] 23. Implement Kubernetes auto-scaling
   - [ ] 23.1 Create HorizontalPodAutoscaler for API service
     - Scale 2-10 replicas based on CPU (70% threshold)
     - Limit scale-up rate to 2 replicas/minute
@@ -598,7 +603,7 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
     - **Property 6: Auto-Scaling Based on Queue Depth**
     - **Validates: Requirements 4.2**
 
-  - [x] 24. Implement asynchronous graph construction
+- [ ] 24. Implement asynchronous graph construction
   - [ ] 24.1 Move graph building to background task
     - Create Celery task for graph construction
     - Remove synchronous build from startup_event
@@ -625,7 +630,7 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
   - [ ]* 24.6 Write unit test for 503 response when graph not ready
     - **Validates: Requirements 2.4**
 
-  - [x] 25. Implement frontend WebSocket for efficient updates
+- [ ] 25. Implement frontend WebSocket for efficient updates
   - [ ] 25.1 Add WebSocket endpoint to API
     - Install websockets library
     - Create WebSocket connection handler
@@ -636,13 +641,13 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
     - Subscribe to Redis pub/sub for change notifications
     - _Requirements: 6.3_
   
-  - [x] 25.3 Update frontend to use WebSocket
+  - [ ] 25.3 Update frontend to use WebSocket
     - Replace 1-second polling with WebSocket
     - Fall back to 30-second polling if WebSocket unavailable
     - Implement exponential backoff on errors
     - _Requirements: 6.1, 6.2, 6.4_
   
-  - [x] 25.4 Add HTTP caching headers
+  - [ ] 25.4 Add HTTP caching headers
     - Include ETag in responses
     - Support If-None-Match for 304 responses
     - _Requirements: 6.5, 6.6_
@@ -651,7 +656,7 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
     - **Property 10: Frontend Polling Rate Limit**
     - **Validates: Requirements 6.1**
 
-- [x] 26. Create comprehensive load tests
+- [ ] 26. Create comprehensive load tests
   - [ ] 26.1 Create Locust load test suite
     - Simulate 100 concurrent users
     - Mix of read and write operations
@@ -684,52 +689,52 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
     - **Property 36: Load Test Error Rate Validation**
     - **Validates: Requirements 25.4**
 
-- [x] 27. Update Kubernetes deployment manifests
-  - [x] 27.1 Update API deployment
+- [ ] 27. Update Kubernetes deployment manifests
+  - [ ] 27.1 Update API deployment
     - Add health probes
     - Add resource requests and limits
     - Add HPA configuration
     - Add secrets volume mounts
     - _Requirements: Multiple from sections 13, 19, 23, 24_
   
-  - [x] 27.2 Update worker deployment
+  - [ ] 27.2 Update worker deployment
     - Add health probes
     - Add resource requests and limits
     - Add HPA configuration
     - Add secrets volume mounts
     - _Requirements: Multiple from sections 13, 19, 23, 24_
   
-  - [x] 27.3 Add monitoring stack deployment
+  - [ ] 27.3 Add monitoring stack deployment
     - Deploy Prometheus
     - Deploy Grafana
     - Deploy Jaeger
     - Configure service monitors
     - _Requirements: Multiple from sections 16, 18_
   
-  - [x] 27.4 Add Prefect deployment
+  - [ ] 27.4 Add Prefect deployment
     - Deploy Prefect server
     - Deploy Prefect agent
     - Configure work queues
     - _Requirements: 15.1_
 
-- [x] 28. Create migration guide and runbook
-  - [x] 28.1 Document migration steps from POC to production
+- [ ] 28. Create migration guide and runbook
+  - [ ] 28.1 Document migration steps from POC to production
     - Data migration procedures
     - Configuration changes
     - Deployment sequence
   
-  - [x] 28.2 Create operational runbooks
+  - [ ] 28.2 Create operational runbooks
     - Incident response procedures
     - Scaling procedures
     - Backup and recovery procedures
     - Secret rotation procedures
   
-  - [x] 28.3 Create monitoring and alerting guide
+  - [ ] 28.3 Create monitoring and alerting guide
     - Key metrics to watch
     - Alert response procedures
     - Dashboard usage guide
 
-- [x] 29. Final checkpoint - Ensure all tests pass
+- [ ] 29. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
