@@ -579,7 +579,7 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
     - Scan docker-compose.yml and k8s manifests
     - **Validates: Requirements 24.1**
 
-- [ ] 23. Implement Kubernetes auto-scaling
+  - [x] 23. Implement Kubernetes auto-scaling
   - [ ] 23.1 Create HorizontalPodAutoscaler for API service
     - Scale 2-10 replicas based on CPU (70% threshold)
     - Limit scale-up rate to 2 replicas/minute
@@ -598,7 +598,7 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
     - **Property 6: Auto-Scaling Based on Queue Depth**
     - **Validates: Requirements 4.2**
 
-- [ ] 24. Implement asynchronous graph construction
+  - [x] 24. Implement asynchronous graph construction
   - [ ] 24.1 Move graph building to background task
     - Create Celery task for graph construction
     - Remove synchronous build from startup_event
@@ -625,7 +625,7 @@ This implementation plan transforms the Causal Organism platform from proof-of-c
   - [ ]* 24.6 Write unit test for 503 response when graph not ready
     - **Validates: Requirements 2.4**
 
-- [ ] 25. Implement frontend WebSocket for efficient updates
+  - [x] 25. Implement frontend WebSocket for efficient updates
   - [ ] 25.1 Add WebSocket endpoint to API
     - Install websockets library
     - Create WebSocket connection handler
