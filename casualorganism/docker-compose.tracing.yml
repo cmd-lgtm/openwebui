@@ -1,0 +1,140 @@
+# Docker Compose configuration for distributed tracing with Jaeger
+#
+# This file sets up Jaeger for trace collection, storage, and visualization.
+#
+# Requirements:
+# - 16.6: Send traces to centralized collector (Jaeger/Tempo)
+# - 16.7: Retain traces for 30 days
+# - 16.8: Provide UI to search traces by request ID, endpoint, or time range
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.tracing.yml up
+#
+# Access Jaeger UI at: http://localhost:16686
+
+version: '3.8'
+
+services:
+  # Jaeger all-in-one (includes collector, query, and UI)
+  # For production, use separate components with persistent storage
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    container_name: jaeger
+    environment:
+      # Collector configuration
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - COLLECTOR_OTLP_ENABLED=true
+      
+      # Storage configuration
+      # For production, use Elasticsearch or Cassandra for persistent storage
+      - SPAN_STORAGE_TYPE=badger
+      - BADGER_EPHEMERAL=false
+      - BADGER_DIRECTORY_VALUE=/badger/data
+      - BADGER_DIRECTORY_KEY=/badger/key
+      
+      # Retention policy (30 days)
+      # Note: Badger doesn't support automatic TTL, use Elasticsearch for production
+      - BADGER_SPAN_STORE_TTL=720h  # 30 days
+      
+      # Query configuration
+      - QUERY_BASE_PATH=/
+      
+      # Sampling configuration
+      - SAMPLING_STRATEGIES_FILE=/etc/jaeger/sampling_strategies.json
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      
+      # Collector endpoints
+      - "14268:14268"  # HTTP collector
+      - "14250:14250"  # gRPC collector
+      - "9411:9411"    # Zipkin compatible endpoint
+      
+      # OTLP endpoints
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+      
+      # Agent endpoints (for Jaeger client libraries)
+      - "6831:6831/udp"  # Thrift compact
+      - "6832:6832/udp"  # Thrift binary
+      - "5778:5778"      # Serve configs
+    volumes:
+      # Persistent storage for traces
+      - jaeger-badger-data:/badger/data
+      - jaeger-badger-key:/badger/key
+      
+      # Sampling strategies configuration
+      - ./config/jaeger-sampling.json:/etc/jaeger/sampling_strategies.json:ro
+    networks:
+      - causal-organism-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Jaeger with Elasticsearch backend for production
+  # Uncomment this section and comment out the jaeger service above for production use
+  
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+  #   container_name: elasticsearch
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #   ports:
+  #     - "9200:9200"
+  #   volumes:
+  #     - elasticsearch-data:/usr/share/elasticsearch/data
+  #   networks:
+  #     - causal-organism-network
+  #   restart: unless-stopped
+  
+  # jaeger-collector:
+  #   image: jaegertracing/jaeger-collector:1.51
+  #   container_name: jaeger-collector
+  #   environment:
+  #     - SPAN_STORAGE_TYPE=elasticsearch
+  #     - ES_SERVER_URLS=http://elasticsearch:9200
+  #     - ES_TAGS_AS_FIELDS_ALL=true
+  #     - COLLECTOR_OTLP_ENABLED=true
+  #   ports:
+  #     - "14268:14268"
+  #     - "14250:14250"
+  #     - "9411:9411"
+  #     - "4317:4317"
+  #     - "4318:4318"
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - causal-organism-network
+  #   restart: unless-stopped
+  
+  # jaeger-query:
+  #   image: jaegertracing/jaeger-query:1.51
+  #   container_name: jaeger-query
+  #   environment:
+  #     - SPAN_STORAGE_TYPE=elasticsearch
+  #     - ES_SERVER_URLS=http://elasticsearch:9200
+  #     - QUERY_BASE_PATH=/
+  #   ports:
+  #     - "16686:16686"
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - causal-organism-network
+  #   restart: unless-stopped
+
+volumes:
+  jaeger-badger-data:
+    driver: local
+  jaeger-badger-key:
+    driver: local
+  # elasticsearch-data:
+  #   driver: local
+
+networks:
+  causal-organism-network:
+    external: true

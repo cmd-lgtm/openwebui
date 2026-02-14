@@ -1,0 +1,172 @@
+{
+  "dashboard": {
+    "title": "Worker Service Metrics",
+    "tags": ["causal-organism", "worker"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Task Completion Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(worker_tasks_completed_total{job=\"worker-service\",status=\"success\"}[5m])",
+            "legendFormat": "Success - {{task_type}}",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(worker_tasks_completed_total{job=\"worker-service\",status=\"failure\"}[5m])",
+            "legendFormat": "Failure - {{task_type}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Tasks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Task Duration (P95)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(worker_task_duration_seconds_bucket{job=\"worker-service\"}[5m]))",
+            "legendFormat": "P95 {{task_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Queue Depth",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "queue_depth{queue_name=\"celery\"}",
+            "legendFormat": "{{queue_name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tasks"},
+          {"format": "short"}
+        ],
+        "thresholds": [
+          {"value": 50, "colorMode": "warning", "op": "gt", "fill": true, "line": true},
+          {"value": 100, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Active Workers",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "worker_active_count{worker_type=\"celery\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "displayName": "Active Workers"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Task Failure Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "(sum(rate(worker_tasks_completed_total{job=\"worker-service\",status=\"failure\"}[5m])) / sum(rate(worker_tasks_completed_total{job=\"worker-service\"}[5m]))) * 100",
+            "legendFormat": "Failure Rate %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Failure Rate"},
+          {"format": "short"}
+        ],
+        "thresholds": [
+          {"value": 10, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Export Task Duration",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(export_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95 {{export_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Export File Size",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(export_size_bytes_bucket[5m]))",
+            "legendFormat": "P95 {{export_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "bytes", "label": "Size"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Export Requests",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "sum(rate(export_requests_total[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "displayName": "Export Requests/sec"
+          }
+        }
+      }
+    ]
+  }
+}

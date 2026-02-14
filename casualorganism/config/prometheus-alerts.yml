@@ -1,0 +1,183 @@
+# Prometheus alert rules for Causal Organism platform
+#
+# Requirements:
+# - 18.8: Alert on P95 latency >2 seconds
+# - 18.9: Alert on error rate >5%
+
+groups:
+  - name: api_performance
+    interval: 30s
+    rules:
+      # Alert when P95 latency exceeds 2 seconds
+      # Requirement: 18.8
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="api-service"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API latency detected"
+          description: "P95 latency is {{ $value }}s (threshold: 2s) for {{ $labels.instance }}"
+          
+      # Alert when error rate exceeds 5%
+      # Requirement: 18.9
+      - alert: HighAPIErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="api-service",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="api-service"}[5m]))
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate detected"
+          description: "Error rate is {{ $value }}% (threshold: 5%) for {{ $labels.instance }}"
+      
+      # Alert when API service is down
+      - alert: APIServiceDown
+        expr: up{job="api-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "API service is down"
+          description: "API service {{ $labels.instance }} has been down for more than 1 minute"
+
+  - name: worker_performance
+    interval: 30s
+    rules:
+      # Alert when worker task failure rate is high
+      - alert: HighWorkerTaskFailureRate
+        expr: |
+          (
+            sum(rate(worker_tasks_completed_total{job="worker-service",status="failure"}[5m]))
+            /
+            sum(rate(worker_tasks_completed_total{job="worker-service"}[5m]))
+          ) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "High worker task failure rate"
+          description: "Worker task failure rate is {{ $value }}% (threshold: 10%)"
+      
+      # Alert when worker service is down
+      - alert: WorkerServiceDown
+        expr: up{job="worker-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: worker
+        annotations:
+          summary: "Worker service is down"
+          description: "Worker service {{ $labels.instance }} has been down for more than 1 minute"
+      
+      # Alert when queue depth is very high
+      - alert: HighQueueDepth
+        expr: queue_depth{queue_name="celery"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "High queue depth detected"
+          description: "Queue depth is {{ $value }} (threshold: 100) for {{ $labels.queue_name }}"
+
+  - name: database_performance
+    interval: 30s
+    rules:
+      # Alert when connection pool is exhausted
+      - alert: ConnectionPoolExhausted
+        expr: |
+          (
+            connection_pool_active_connections
+            /
+            connection_pool_max_connections
+          ) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Connection pool nearly exhausted"
+          description: "Connection pool {{ $labels.pool_name }} is {{ $value }}% utilized (threshold: 90%)"
+      
+      # Alert when connection pool timeouts are occurring
+      - alert: ConnectionPoolTimeouts
+        expr: rate(connection_pool_timeouts_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Connection pool timeouts detected"
+          description: "Connection pool {{ $labels.pool_name }} is experiencing {{ $value }} timeouts/sec"
+
+  - name: cache_performance
+    interval: 30s
+    rules:
+      # Alert when cache hit rate is low
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            sum(rate(cache_hits_total[5m]))
+            /
+            (sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m])))
+          ) * 100 < 50
+        for: 10m
+        labels:
+          severity: info
+          component: cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value }}% (threshold: 50%)"
+
+  - name: circuit_breaker
+    interval: 30s
+    rules:
+      # Alert when circuit breaker is open
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 1
+        for: 2m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit breaker for {{ $labels.service_name }} is OPEN, blocking requests"
+      
+      # Alert when circuit breaker failure rate is high
+      - alert: HighCircuitBreakerFailureRate
+        expr: |
+          (
+            rate(circuit_breaker_failures_total[5m])
+            /
+            (rate(circuit_breaker_failures_total[5m]) + rate(circuit_breaker_successes_total[5m]))
+          ) * 100 > 20
+        for: 5m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "High circuit breaker failure rate"
+          description: "Circuit breaker for {{ $labels.service_name }} has {{ $value }}% failure rate (threshold: 20%)"
+
+  - name: export_performance
+    interval: 30s
+    rules:
+      # Alert when export tasks are taking too long
+      - alert: SlowExportTasks
+        expr: histogram_quantile(0.95, rate(export_duration_seconds_bucket[5m])) > 300
+        for: 10m
+        labels:
+          severity: info
+          component: export
+        annotations:
+          summary: "Export tasks are slow"
+          description: "P95 export duration is {{ $value }}s (threshold: 300s) for {{ $labels.export_type }}"

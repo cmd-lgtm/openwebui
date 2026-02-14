@@ -1,0 +1,68 @@
+# Prometheus configuration for Causal Organism platform
+#
+# Requirements:
+# - 18.1: Configure scraping for API service
+# - 18.2: Configure scraping for worker service
+# - Set up retention policy
+
+global:
+  scrape_interval: 15s  # Scrape targets every 15 seconds
+  evaluation_interval: 15s  # Evaluate rules every 15 seconds
+  external_labels:
+    cluster: 'causal-organism'
+    environment: 'production'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "/etc/prometheus/alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # API Service metrics
+  - job_name: 'api-service'
+    static_configs:
+      - targets: ['backend:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Worker Service metrics
+  - job_name: 'worker-service'
+    static_configs:
+      - targets: ['worker:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter for system metrics (optional)
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+
+  # Neo4j metrics (if exposed)
+  # - job_name: 'neo4j'
+  #   static_configs:
+  #     - targets: ['neo4j:2004']
+  #   metrics_path: '/metrics'
+
+  # Redis metrics (if redis_exporter is deployed)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # TimescaleDB/PostgreSQL metrics (if postgres_exporter is deployed)
+  # - job_name: 'timescale'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']

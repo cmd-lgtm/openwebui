@@ -1,0 +1,220 @@
+{
+  "dashboard": {
+    "title": "Infrastructure Metrics",
+    "tags": ["causal-organism", "infrastructure"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Connection Pool - Active Connections",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "connection_pool_active_connections",
+            "legendFormat": "{{pool_name}} - {{database_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Connections"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Connection Pool - Idle Connections",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "connection_pool_idle_connections",
+            "legendFormat": "{{pool_name}} - {{database_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Connections"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Connection Pool Utilization %",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "(connection_pool_active_connections / connection_pool_max_connections) * 100",
+            "legendFormat": "{{pool_name}} - {{database_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Utilization"},
+          {"format": "short"}
+        ],
+        "thresholds": [
+          {"value": 70, "colorMode": "warning", "op": "gt", "fill": true, "line": true},
+          {"value": 90, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Connection Pool Timeouts",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(connection_pool_timeouts_total[5m])",
+            "legendFormat": "{{pool_name}} - {{database_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Timeouts/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "(sum(rate(cache_hits_total[5m])) by (cache_layer) / (sum(rate(cache_hits_total[5m])) by (cache_layer) + sum(rate(cache_misses_total[5m])) by (cache_layer))) * 100",
+            "legendFormat": "{{cache_layer}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Hit Rate"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Cache Operations",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(cache_hits_total[5m])",
+            "legendFormat": "Hits - {{cache_layer}}",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(cache_misses_total[5m])",
+            "legendFormat": "Misses - {{cache_layer}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Circuit Breaker Failures",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "rate(circuit_breaker_failures_total[5m])",
+            "legendFormat": "{{service_name}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Failures/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Circuit Breaker State",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "circuit_breaker_state",
+            "legendFormat": "{{service_name}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "mappings": [
+              {"type": "value", "value": "0", "text": "CLOSED"},
+              {"type": "value", "value": "1", "text": "OPEN"},
+              {"type": "value", "value": "2", "text": "HALF_OPEN"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"},
+                {"value": 2, "color": "yellow"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Graph Update Duration",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(graph_update_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95 {{update_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Intervention Metrics",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+        "targets": [
+          {
+            "expr": "rate(intervention_proposals_total[5m])",
+            "legendFormat": "Proposals - {{intervention_type}}",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(intervention_executions_total[5m])",
+            "legendFormat": "Executions - {{intervention_type}}",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(intervention_rollbacks_total[5m])",
+            "legendFormat": "Rollbacks - {{intervention_type}}",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"},
+          {"format": "short"}
+        ]
+      }
+    ]
+  }
+}

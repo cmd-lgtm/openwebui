@@ -1,0 +1,25 @@
+{
+  "service_strategies": [
+    {
+      "service": "api-service",
+      "type": "probabilistic",
+      "param": 1.0,
+      "operation_strategies": [
+        {
+          "operation": "health_check",
+          "type": "probabilistic",
+          "param": 0.1
+        }
+      ]
+    },
+    {
+      "service": "worker-service",
+      "type": "probabilistic",
+      "param": 1.0
+    }
+  ],
+  "default_strategy": {
+    "type": "probabilistic",
+    "param": 1.0
+  }
+}

@@ -1,0 +1,68 @@
+# Docker Compose configuration for Prefect server
+# Requirements: 15.1
+
+version: '3.8'
+
+services:
+  prefect-server:
+    image: prefecthq/prefect:2-python3.11
+    container_name: prefect-server
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "4200:4200"
+    environment:
+      - PREFECT_SERVER_API_HOST=0.0.0.0
+      - PREFECT_SERVER_API_PORT=4200
+      - PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@prefect-db:5432/prefect
+      - PREFECT_API_URL=http://prefect-server:4200/api
+    depends_on:
+      - prefect-db
+    networks:
+      - causal-organism
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  prefect-db:
+    image: postgres:14-alpine
+    container_name: prefect-db
+    environment:
+      - POSTGRES_USER=prefect
+      - POSTGRES_PASSWORD=prefect
+      - POSTGRES_DB=prefect
+    volumes:
+      - prefect-db-data:/var/lib/postgresql/data
+    networks:
+      - causal-organism
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prefect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prefect-agent:
+    image: prefecthq/prefect:2-python3.11
+    container_name: prefect-agent
+    command: prefect agent start -q default
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+    depends_on:
+      - prefect-server
+    networks:
+      - causal-organism
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app/backend
+      - ./requirements.txt:/app/requirements.txt
+    working_dir: /app
+
+networks:
+  causal-organism:
+    external: true
+
+volumes:
+  prefect-db-data:

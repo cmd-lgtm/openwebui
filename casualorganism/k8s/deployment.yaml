@@ -1,0 +1,200 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: causal-organism-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: api
+        image: causal-organism-api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: GRAPH_DB_URL
+          value: "bolt://neo4j-service:7687"
+        - name: GRAPH_DB_USER
+          value: "neo4j"
+        - name: GRAPH_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: neo4j-secret
+              key: password
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        - name: TIMESCALE_HOST
+          value: "timescale-service"
+        - name: TIMESCALE_PORT
+          value: "5432"
+        - name: TIMESCALE_DB
+          value: "postgres"
+        - name: TIMESCALE_USER
+          value: "postgres"
+        - name: TIMESCALE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: timescale-secret
+              key: password
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret-key
+        - name: S3_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: s3-secret
+              key: access-key
+              optional: true
+        - name: S3_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: s3-secret
+              key: secret-key
+              optional: true
+        # Liveness probe - checks if process is alive
+        # Requirements: 23.1, 23.3, 23.9
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8000
+          initialDelaySeconds: 30      # Wait 30s after container starts
+          periodSeconds: 10             # Check every 10 seconds
+          timeoutSeconds: 5             # Timeout after 5 seconds
+          failureThreshold: 3           # Restart after 3 consecutive failures
+          successThreshold: 1           # Consider healthy after 1 success
+        # Readiness probe - checks if service can handle requests
+        # Requirements: 23.2, 23.4, 23.5, 23.6, 23.7, 23.8, 23.10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 10       # Wait 10s after container starts
+          periodSeconds: 5              # Check every 5 seconds
+          timeoutSeconds: 3             # Timeout after 3 seconds
+          failureThreshold: 2           # Remove from load balancer after 2 failures
+          successThreshold: 1           # Add to load balancer after 1 success
+        # Resource requests and limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: backend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: causal-organism-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+      - name: worker
+        image: causal-organism-api:latest
+        command: ["celery", "-A", "backend.worker.celery_app", "worker", "--loglevel=info"]
+        ports:
+        - containerPort: 9090  # Prometheus metrics port
+        env:
+        - name: GRAPH_DB_URL
+          value: "bolt://neo4j-service:7687"
+        - name: GRAPH_DB_USER
+          value: "neo4j"
+        - name: GRAPH_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: neo4j-secret
+              key: password
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        - name: TIMESCALE_HOST
+          value: "timescale-service"
+        - name: TIMESCALE_PORT
+          value: "5432"
+        - name: TIMESCALE_DB
+          value: "postgres"
+        - name: TIMESCALE_USER
+          value: "postgres"
+        - name: TIMESCALE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: timescale-secret
+              key: password
+        - name: S3_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: s3-secret
+              key: access-key
+              optional: true
+        - name: S3_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: s3-secret
+              key: secret-key
+              optional: true
+        # Liveness probe - checks if Celery worker process is alive
+        # Uses Celery inspect ping command
+        # Requirements: 23.1, 23.3, 23.9
+        livenessProbe:
+          exec:
+            command:
+            - celery
+            - -A
+            - backend.worker.celery_app
+            - inspect
+            - ping
+            - -d
+            - celery@$HOSTNAME
+          initialDelaySeconds: 60      # Wait 60s for worker to start
+          periodSeconds: 30             # Check every 30 seconds
+          timeoutSeconds: 10            # Timeout after 10 seconds
+          failureThreshold: 3           # Restart after 3 consecutive failures
+          successThreshold: 1           # Consider healthy after 1 success
+        # Readiness probe - checks if worker can process tasks
+        # Uses Prometheus metrics endpoint as a proxy for readiness
+        # Requirements: 23.2, 23.4, 23.10
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 9090
+          initialDelaySeconds: 30       # Wait 30s after container starts
+          periodSeconds: 10             # Check every 10 seconds
+          timeoutSeconds: 5             # Timeout after 5 seconds
+          failureThreshold: 2           # Mark not ready after 2 failures
+          successThreshold: 1           # Mark ready after 1 success
+        # Resource requests and limits
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "4000m"
