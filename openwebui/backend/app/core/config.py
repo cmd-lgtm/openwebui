@@ -15,17 +15,18 @@ class Settings(BaseSettings):
     APP_NAME: str = "NexusAI IDE"
     DEBUG: bool = Field(default=True)
     ENVIRONMENT: str = Field(default="development")
-    DEMO_MODE: bool = Field(default=False)  # Enable for development only
     DEMO_MODE: bool = Field(default=False)  # Set to True for development only
 
     # Security
     SECRET_KEY: str = Field(default="dev-secret-key-change-in-production")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # Short-lived access tokens
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     ALGORITHM: str = "HS256"
 
     # Database
-    DATABASE_URL: str = Field(default="sqlite+aiosqlite:///./nexusai.db")
+    DATABASE_URL: str = Field(default="postgresql+asyncpg://postgres:postgres@localhost:5432/nexusai")
+    DATABASE_POOL_SIZE: int = 20
+    DATABASE_MAX_OVERFLOW: int = 10
 
     # Ollama settings
     OLLAMA_BASE_URL: str = Field(default="http://localhost:11434")
