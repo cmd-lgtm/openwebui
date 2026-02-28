@@ -17,6 +17,7 @@ from app.core.config import settings as app_settings
 from app.core.exceptions import NexusAIException
 from app.db.database import create_tables
 from app.cache import init_cache, close_cache
+from app.queue import init_queue, close_queue, QueueWorker
 
 # Configure logging
 logging.basicConfig(
@@ -24,6 +25,9 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Queue worker instance
+queue_worker: QueueWorker = None
 
 
 @asynccontextmanager
@@ -33,6 +37,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Initialize Redis cache
     await init_cache()
+    logger.info("✅ Cache initialized")
+
+    # Initialize queue
+    await init_queue()
+
+    # Start queue worker
+    global queue_worker
+    queue_worker = QueueWorker(["code_execution", "file_indexing"])
+    await queue_worker.start()
 
     # Create database tables
     await create_tables()
@@ -41,6 +54,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # Cleanup
+    if queue_worker:
+        await queue_worker.stop()
+    await close_queue()
     await close_cache()
     logger.info("🛑 Shutting down NexusAI IDE Backend...")
 
@@ -118,11 +134,18 @@ async def general_exception_handler(request: Request, exc: Exception):
 # Health check endpoint
 @app.get("/api/v1/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with cache and queue status"""
+    from app.cache import cache_service
+    from app.queue import queue_service
+
     return {
         "status": "healthy",
         "version": "2.0.0",
-        "timestamp": asyncio.get_event_loop().time()
+        "timestamp": asyncio.get_event_loop().time(),
+        "services": {
+            "cache": "enabled" if cache_service.is_enabled else "disabled",
+            "queue": "enabled" if queue_service.is_enabled else "disabled",
+        }
     }
 
 
