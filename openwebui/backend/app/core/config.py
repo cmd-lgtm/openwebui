@@ -31,18 +31,18 @@ class Settings(BaseSettings):
     # Ollama settings
     OLLAMA_BASE_URL: str = Field(default="http://localhost:11434")
     OLLAMA_ENABLED: bool = Field(default=True)
-    OLLAMA_DEFAULT_MODEL: str = Field(default="llama3.2")
+    OLLAMA_DEFAULT_MODEL: str = Field(default="qwen2.5-coder:7b")
 
     # OpenAI settings
     OPENAI_API_KEY: Optional[str] = Field(default=None)
-    OPENAI_ENABLED: bool = Field(default=False)
+    OPENAI_ENABLED: bool = Field(default=True)
     OPENAI_DEFAULT_MODEL: str = Field(default="gpt-4o-mini")
     OPENAI_ORGANIZATION: Optional[str] = Field(default=None)
 
     # Anthropic settings
     ANTHROPIC_API_KEY: Optional[str] = Field(default=None)
-    ANTHROPIC_ENABLED: bool = Field(default=False)
-    ANTHROPIC_DEFAULT_MODEL: str = Field(default="claude-3-haiku-20240307")
+    ANTHROPIC_ENABLED: bool = Field(default=True)
+    ANTHROPIC_DEFAULT_MODEL: str = Field(default="claude-sonnet-4-20251111")
 
     # Azure OpenAI settings
     AZURE_OPENAI_API_KEY: Optional[str] = Field(default=None)
@@ -71,6 +71,18 @@ class Settings(BaseSettings):
     COHERE_API_KEY: Optional[str] = Field(default=None)
     COHERE_ENABLED: bool = Field(default=False)
 
+    # X.AI / Grok settings
+    XAI_API_KEY: Optional[str] = Field(default=None)
+    XAI_ENABLED: bool = Field(default=False)
+
+    # Blackbox AI settings
+    BLACKBOX_API_KEY: Optional[str] = Field(default=None)
+    BLACKBOX_ENABLED: bool = Field(default=False)
+
+    # Vertex AI settings
+    VERTEX_AI_KEY: Optional[str] = Field(default=None)
+    VERTEX_AI_ENABLED: bool = Field(default=False)
+
     # Code execution
     CODE_EXECUTION_ENABLED: bool = Field(default=True)
     CODE_EXECUTION_TIMEOUT: int = 30  # seconds
@@ -82,6 +94,11 @@ class Settings(BaseSettings):
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = Field(default=True)
     RATE_LIMIT_PER_MINUTE: int = 60
+
+    # Redis caching
+    REDIS_ENABLED: bool = Field(default=True)
+    REDIS_URL: str = Field(default="redis://localhost:6379/0")
+    REDIS_CACHE_TTL: int = 300  # 5 minutes default
 
     # File settings
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
